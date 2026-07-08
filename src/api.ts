@@ -1,10 +1,21 @@
 import { supabase } from "./supabase";
-import type { ProblemReport, ReportList, ReportStatus } from "./types";
-import { DEMO, demoReports } from "./demo";
+import type {
+  MediaProvider,
+  ProblemReport,
+  ReportList,
+  ReportStatus,
+  YoutubeTranscriptionCacheRunResponse,
+  YoutubeTranscriptionCacheStatus,
+  YoutubeTranscriptionCacheVideo,
+  YoutubeTranscriptionCacheVideoList,
+} from "./types";
+import { DEMO, demoReports, demoYoutubeCacheVideos } from "./demo";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 let demoState: ProblemReport[] = demoReports.map((r) => ({ ...r }));
+let demoYoutubeState: YoutubeTranscriptionCacheVideo[] =
+  demoYoutubeCacheVideos.map((v) => ({ ...v }));
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -88,4 +99,101 @@ export async function updateReport(
     body: JSON.stringify(patch),
   });
   return handle<ProblemReport>(res);
+}
+
+export interface YoutubeCacheListParams {
+  status?: YoutubeTranscriptionCacheStatus;
+  limit?: number;
+}
+
+export async function listYoutubeTranscriptionCacheVideos(
+  params: YoutubeCacheListParams,
+): Promise<YoutubeTranscriptionCacheVideoList> {
+  if (DEMO) {
+    const status = params.status ?? "all";
+    const limit = params.limit ?? 50;
+    const videos = demoYoutubeState
+      .filter((v) => status === "all" || v.status === status)
+      .slice(0, limit);
+    return { videos };
+  }
+
+  const qs = new URLSearchParams();
+  qs.set("limit", String(params.limit ?? 50));
+  if (params.status) qs.set("status", params.status);
+  const res = await fetch(
+    `${BASE}/api/admin/youtube-transcription-cache/videos?${qs}`,
+    { headers: await authHeaders() },
+  );
+  return handle<YoutubeTranscriptionCacheVideoList>(res);
+}
+
+export async function getYoutubeTranscriptionCacheVideo(
+  videoId: string,
+): Promise<YoutubeTranscriptionCacheVideo> {
+  if (DEMO) {
+    const video = demoYoutubeState.find((v) => v.video_id === videoId);
+    if (!video) throw new Error("Demo video not found.");
+    return { ...video };
+  }
+  const res = await fetch(
+    `${BASE}/api/admin/youtube-transcription-cache/videos/${encodeURIComponent(
+      videoId,
+    )}`,
+    { headers: await authHeaders() },
+  );
+  return handle<YoutubeTranscriptionCacheVideo>(res);
+}
+
+export async function runYoutubeTranscriptionCache(
+  input: {
+    video_ids: string[];
+    provider: MediaProvider;
+    replace: boolean;
+  },
+): Promise<YoutubeTranscriptionCacheRunResponse> {
+  if (DEMO) {
+    const found = new Set(demoYoutubeState.map((v) => v.video_id));
+    const missing = input.video_ids.filter((id) => !found.has(id));
+    const skipped = demoYoutubeState
+      .filter(
+        (v) =>
+          input.video_ids.includes(v.video_id) &&
+          v.status === "succeeded" &&
+          !input.replace,
+      )
+      .map((v) => v.video_id);
+    const queued = input.video_ids.filter(
+      (id) => found.has(id) && !skipped.includes(id),
+    );
+    demoYoutubeState = demoYoutubeState.map((v) =>
+      queued.includes(v.video_id)
+        ? {
+            ...v,
+            status: "queued",
+            provider: input.provider,
+            provider_model: "",
+            error_detail: null,
+            transcription_updated_at: new Date().toISOString(),
+          }
+        : v,
+    );
+    return {
+      accepted: queued.length > 0,
+      requested: input.video_ids.length,
+      queued: queued.length,
+      skipped: skipped.length,
+      missing: missing.length,
+      video_ids: queued,
+      skipped_video_ids: skipped,
+      missing_video_ids: missing,
+    };
+  }
+
+  const res = await fetch(`${BASE}/api/admin/youtube-transcription-cache/runs`, {
+    method: "POST",
+    headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return handle<YoutubeTranscriptionCacheRunResponse>(res);
 }

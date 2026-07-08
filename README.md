@@ -36,6 +36,10 @@ Sign in with a Supabase account whose email is listed in the backend's
 - Detail panel shows the full `target` / `client_context`, message, and metadata.
 - Change a report's status (`open`/`triaged`/`resolved`/`dismissed`) and save a
   resolution note.
+- Lists shared YouTube audio cache rows and their shared transcription-cache
+  status.
+- Queues selected cached YouTube videos for shared transcription backfill against
+  the backend `feat/media-audio-backfill` admin API.
 
 ## Endpoints used
 
@@ -44,6 +48,13 @@ From `language-backend` (`docs/specs/problem-reports.md`):
 - `GET /api/admin/problem-reports`
 - `GET /api/admin/problem-reports/{id}`
 - `PATCH /api/admin/problem-reports/{id}`
+
+From `language-backend` branch `feat/media-audio-backfill`
+(`docs/specs/media-transcription.md`):
+
+- `GET /api/admin/youtube-transcription-cache/videos`
+- `GET /api/admin/youtube-transcription-cache/videos/{video_id}`
+- `POST /api/admin/youtube-transcription-cache/runs`
 
 ## Not yet built
 

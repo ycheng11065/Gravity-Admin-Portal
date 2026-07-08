@@ -1,4 +1,4 @@
-import type { ProblemReport } from "./types";
+import type { ProblemReport, YoutubeTranscriptionCacheVideo } from "./types";
 
 export const DEMO = import.meta.env.VITE_DEMO === "true";
 
@@ -101,5 +101,62 @@ export const demoReports: ProblemReport[] = [
     last_reported_at: iso(8000),
     created_at: iso(8000),
     updated_at: iso(7000),
+  },
+];
+
+export const demoYoutubeCacheVideos: YoutubeTranscriptionCacheVideo[] = [
+  {
+    video_id: "y035IcEPiIA",
+    source_url: "https://www.youtube.com/watch?v=y035IcEPiIA",
+    gcs_object_key: "youtube/y035IcEPiIA/audio.m4a",
+    title: "Kimino Koibitoni Nattara",
+    channel: "back number",
+    language: "ja",
+    duration_seconds: 184.2,
+    audio_updated_at: iso(90),
+    status: "missing",
+    provider: "",
+    provider_model: "",
+    payload_object_key: "",
+    transcript_text: "",
+    reviewed_at: null,
+    error_detail: null,
+    transcription_updated_at: null,
+  },
+  {
+    video_id: "demoSucceeded1",
+    source_url: "https://www.youtube.com/watch?v=demoSucceeded1",
+    gcs_object_key: "youtube/demoSucceeded1/audio.m4a",
+    title: "Japanese Listening Practice",
+    channel: "Gravity Samples",
+    language: "ja",
+    duration_seconds: 642,
+    audio_updated_at: iso(480),
+    status: "succeeded",
+    provider: "whisper",
+    provider_model: "openai/whisper-large-v3",
+    payload_object_key: "youtube/demoSucceeded1/transcript.json.gz",
+    transcript_text: "これはデモ用の文字起こしです。管理画面から状態を確認できます。",
+    reviewed_at: null,
+    error_detail: null,
+    transcription_updated_at: iso(300),
+  },
+  {
+    video_id: "demoFailed1",
+    source_url: "https://www.youtube.com/watch?v=demoFailed1",
+    gcs_object_key: "youtube/demoFailed1/audio.m4a",
+    title: "Unavailable Audio",
+    channel: "Gravity Samples",
+    language: "ja",
+    duration_seconds: 245,
+    audio_updated_at: iso(1200),
+    status: "failed",
+    provider: "openai",
+    provider_model: "whisper-1",
+    payload_object_key: "",
+    transcript_text: "",
+    reviewed_at: null,
+    error_detail: "Provider transcription request failed.",
+    transcription_updated_at: iso(240),
   },
 ];
