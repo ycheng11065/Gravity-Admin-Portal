@@ -7,8 +7,10 @@ import {
   type ReportStatus,
 } from "./types";
 import { ReportDetail } from "./ReportDetail";
+import { MediaTranscriptionCache } from "./MediaTranscriptionCache";
 
 const PAGE_SIZE = 50;
+type AdminView = "reports" | "media-transcription";
 
 export function Dashboard({
   email,
@@ -17,6 +19,7 @@ export function Dashboard({
   email: string;
   onSignOut: () => void;
 }) {
+  const [view, setView] = useState<AdminView>("reports");
   const [status, setStatus] = useState<ReportStatus | "">("open");
   const [issueType, setIssueType] = useState("");
   const [offset, setOffset] = useState(0);
@@ -61,7 +64,21 @@ export function Dashboard({
   return (
     <div className="layout">
       <header className="topbar">
-        <strong>Problem Reports</strong>
+        <strong>Language Admin</strong>
+        <nav className="tabs" aria-label="Admin sections">
+          <button
+            className={view === "reports" ? "active" : ""}
+            onClick={() => setView("reports")}
+          >
+            Problem reports
+          </button>
+          <button
+            className={view === "media-transcription" ? "active" : ""}
+            onClick={() => setView("media-transcription")}
+          >
+            Media transcription
+          </button>
+        </nav>
         <span className="spacer" />
         <span className="muted">{email}</span>
         <button className="link" onClick={onSignOut}>
@@ -69,7 +86,11 @@ export function Dashboard({
         </button>
       </header>
 
-      <div className="toolbar">
+      {view === "media-transcription" ? (
+        <MediaTranscriptionCache />
+      ) : (
+        <>
+          <div className="toolbar">
         <select
           value={status}
           onChange={(e) => {
@@ -103,11 +124,11 @@ export function Dashboard({
         </button>
         <span className="spacer" />
         <span className="muted">{total} total</span>
-      </div>
+          </div>
 
-      {error && <div className="error bar">{error}</div>}
+          {error && <div className="error bar">{error}</div>}
 
-      <div className="split">
+          <div className="split">
         <table className="reports">
           <thead>
             <tr>
@@ -153,9 +174,9 @@ export function Dashboard({
             onUpdate={applyUpdate}
           />
         )}
-      </div>
+          </div>
 
-      <footer className="pager">
+          <footer className="pager">
         <button
           disabled={offset === 0}
           onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
@@ -171,7 +192,9 @@ export function Dashboard({
         >
           Next ›
         </button>
-      </footer>
+          </footer>
+        </>
+      )}
     </div>
   );
 }
