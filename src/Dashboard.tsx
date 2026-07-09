@@ -7,10 +7,10 @@ import {
   type ReportStatus,
 } from "./types";
 import { ReportDetail } from "./ReportDetail";
-import { YoutubeTranscriptionCache } from "./YoutubeTranscriptionCache";
+import { MediaTranscriptionCache } from "./MediaTranscriptionCache";
 
 const PAGE_SIZE = 50;
-type AdminView = "reports" | "youtube-cache";
+type AdminView = "reports" | "media-transcription";
 
 export function Dashboard({
   email,
@@ -73,10 +73,10 @@ export function Dashboard({
             Problem reports
           </button>
           <button
-            className={view === "youtube-cache" ? "active" : ""}
-            onClick={() => setView("youtube-cache")}
+            className={view === "media-transcription" ? "active" : ""}
+            onClick={() => setView("media-transcription")}
           >
-            YouTube cache
+            Media transcription
           </button>
         </nav>
         <span className="spacer" />
@@ -86,8 +86,8 @@ export function Dashboard({
         </button>
       </header>
 
-      {view === "youtube-cache" ? (
-        <YoutubeTranscriptionCache />
+      {view === "media-transcription" ? (
+        <MediaTranscriptionCache />
       ) : (
         <>
           <div className="toolbar">

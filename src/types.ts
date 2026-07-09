@@ -32,7 +32,7 @@ export interface ReportList {
   offset: number;
 }
 
-export type YoutubeTranscriptionCacheStatus =
+export type MediaTranscriptionCacheStatus =
   | "all"
   | "missing"
   | "queued"
@@ -49,8 +49,14 @@ export type MediaProvider =
   | "qwen"
   | "qwen+alignment";
 
-export interface YoutubeTranscriptionCacheVideo {
-  video_id: string;
+export interface MediaTranscriptionCacheSource {
+  source_type: "youtube" | "spotify_podcast" | "audio_url" | "unknown";
+  external_id: string;
+}
+
+export interface MediaTranscriptionCacheItem extends MediaTranscriptionCacheSource {
+  media_id: string;
+  video_id?: string;
   source_url: string;
   gcs_object_key: string;
   title: string;
@@ -58,26 +64,30 @@ export interface YoutubeTranscriptionCacheVideo {
   language: string;
   duration_seconds: number | null;
   audio_updated_at: string | null;
-  status: Exclude<YoutubeTranscriptionCacheStatus, "all">;
+  status: Exclude<MediaTranscriptionCacheStatus, "all">;
   provider: string;
   provider_model: string;
   payload_object_key: string;
-  transcript_text: string;
-  reviewed_at: string | null;
-  error_detail: string | null;
+  transcript_text?: string;
+  reviewed_at?: string | null;
+  error_detail?: string | null;
   transcription_updated_at: string | null;
 }
 
-export interface YoutubeTranscriptionCacheVideoList {
-  videos: YoutubeTranscriptionCacheVideo[];
+export interface MediaTranscriptionCacheItemList {
+  items: MediaTranscriptionCacheItem[];
+  videos?: MediaTranscriptionCacheItem[];
 }
 
-export interface YoutubeTranscriptionCacheRunResponse {
+export interface MediaTranscriptionCacheRunResponse {
   accepted: boolean;
   requested: number;
   queued: number;
   skipped: number;
   missing: number;
+  sources: MediaTranscriptionCacheSource[];
+  skipped_sources: MediaTranscriptionCacheSource[];
+  missing_sources: MediaTranscriptionCacheSource[];
   video_ids: string[];
   skipped_video_ids: string[];
   missing_video_ids: string[];
@@ -98,14 +108,10 @@ export const STATUSES: ReportStatus[] = [
   "dismissed",
 ];
 
-export const YOUTUBE_CACHE_STATUSES: YoutubeTranscriptionCacheStatus[] = [
+export const MEDIA_TRANSCRIPTION_CACHE_STATUSES: MediaTranscriptionCacheStatus[] = [
   "all",
   "missing",
-  "queued",
-  "running",
   "succeeded",
-  "failed",
-  "needs_review",
 ];
 
 export const MEDIA_PROVIDERS: MediaProvider[] = [

@@ -193,8 +193,8 @@ table.reports {
 .reports tbody tr.active {
   background: #1d2330;
 }
-.youtube-cache-table th:first-child,
-.youtube-cache-table td:first-child {
+.media-transcription-table th:first-child,
+.media-transcription-table td:first-child {
   width: 36px;
   text-align: center;
 }

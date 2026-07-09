@@ -1,52 +1,52 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  getYoutubeTranscriptionCacheVideo,
-  listYoutubeTranscriptionCacheVideos,
-  runYoutubeTranscriptionCache,
+  getMediaTranscriptionCacheItem,
+  listMediaTranscriptionCacheItems,
+  runMediaTranscriptionCache,
 } from "./api";
 import {
   MEDIA_PROVIDERS,
-  YOUTUBE_CACHE_STATUSES,
+  MEDIA_TRANSCRIPTION_CACHE_STATUSES,
   type MediaProvider,
-  type YoutubeTranscriptionCacheRunResponse,
-  type YoutubeTranscriptionCacheStatus,
-  type YoutubeTranscriptionCacheVideo,
+  type MediaTranscriptionCacheItem,
+  type MediaTranscriptionCacheRunResponse,
+  type MediaTranscriptionCacheStatus,
 } from "./types";
 
 const DEFAULT_LIMIT = 50;
 
-export function YoutubeTranscriptionCache() {
+export function MediaTranscriptionCache() {
   const [status, setStatus] =
-    useState<YoutubeTranscriptionCacheStatus>("missing");
+    useState<MediaTranscriptionCacheStatus>("missing");
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [provider, setProvider] = useState<MediaProvider>("whisper");
   const [replace, setReplace] = useState(false);
-  const [videos, setVideos] = useState<YoutubeTranscriptionCacheVideo[]>([]);
+  const [items, setItems] = useState<MediaTranscriptionCacheItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [active, setActive] = useState<YoutubeTranscriptionCacheVideo | null>(
+  const [active, setActive] = useState<MediaTranscriptionCacheItem | null>(
     null,
   );
   const [runResult, setRunResult] =
-    useState<YoutubeTranscriptionCacheRunResponse | null>(null);
+    useState<MediaTranscriptionCacheRunResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedVideos = useMemo(
-    () => videos.filter((v) => selectedIds.has(v.video_id)),
-    [videos, selectedIds],
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedIds.has(item.media_id)),
+    [items, selectedIds],
   );
   const allVisibleSelected =
-    videos.length > 0 && videos.every((v) => selectedIds.has(v.video_id));
+    items.length > 0 && items.every((item) => selectedIds.has(item.media_id));
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await listYoutubeTranscriptionCacheVideos({ status, limit });
-      setVideos(res.videos);
+      const res = await listMediaTranscriptionCacheItems({ status, limit });
+      setItems(res.items);
       setSelectedIds((current) => {
-        const visible = new Set(res.videos.map((v) => v.video_id));
+        const visible = new Set(res.items.map((item) => item.media_id));
         return new Set([...current].filter((id) => visible.has(id)));
       });
     } catch (e) {
@@ -62,28 +62,28 @@ export function YoutubeTranscriptionCache() {
 
   function toggleAll() {
     setSelectedIds(
-      allVisibleSelected ? new Set() : new Set(videos.map((v) => v.video_id)),
+      allVisibleSelected ? new Set() : new Set(items.map((item) => item.media_id)),
     );
   }
 
-  function toggleOne(videoId: string) {
+  function toggleOne(mediaId: string) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(videoId)) {
-        next.delete(videoId);
+      if (next.has(mediaId)) {
+        next.delete(mediaId);
       } else {
-        next.add(videoId);
+        next.add(mediaId);
       }
       return next;
     });
   }
 
-  async function refreshActive(videoId: string) {
+  async function refreshActive(mediaId: string) {
     try {
-      const video = await getYoutubeTranscriptionCacheVideo(videoId);
-      setActive(video);
-      setVideos((rows) =>
-        rows.map((row) => (row.video_id === video.video_id ? video : row)),
+      const item = await getMediaTranscriptionCacheItem(mediaId);
+      setActive(item);
+      setItems((rows) =>
+        rows.map((row) => (row.media_id === item.media_id ? item : row)),
       );
     } catch (e) {
       setError((e as Error).message);
@@ -95,14 +95,17 @@ export function YoutubeTranscriptionCache() {
     setError(null);
     setRunResult(null);
     try {
-      const res = await runYoutubeTranscriptionCache({
-        video_ids: [...selectedIds],
+      const res = await runMediaTranscriptionCache({
+        sources: selectedItems.map((item) => ({
+          source_type: item.source_type,
+          external_id: item.external_id,
+        })),
         provider,
         replace,
       });
       setRunResult(res);
       await load();
-      if (active) await refreshActive(active.video_id);
+      if (active) await refreshActive(active.media_id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -118,10 +121,10 @@ export function YoutubeTranscriptionCache() {
           onChange={(e) => {
             setSelectedIds(new Set());
             setActive(null);
-            setStatus(e.target.value as YoutubeTranscriptionCacheStatus);
+            setStatus(e.target.value as MediaTranscriptionCacheStatus);
           }}
         >
-          {YOUTUBE_CACHE_STATUSES.map((s) => (
+          {MEDIA_TRANSCRIPTION_CACHE_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
@@ -165,7 +168,7 @@ export function YoutubeTranscriptionCache() {
           {running ? "Queuing…" : `Run selected (${selectedIds.size})`}
         </button>
         <span className="spacer" />
-        <span className="muted">{videos.length} loaded</span>
+        <span className="muted">{items.length} loaded</span>
       </div>
 
       {error && <div className="error bar">{error}</div>}
@@ -177,7 +180,7 @@ export function YoutubeTranscriptionCache() {
       )}
 
       <div className="split">
-        <table className="reports youtube-cache-table">
+        <table className="reports media-transcription-table">
           <thead>
             <tr>
               <th>
@@ -185,50 +188,52 @@ export function YoutubeTranscriptionCache() {
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={toggleAll}
-                  aria-label="Select all visible videos"
+                  aria-label="Select all visible media items"
                 />
               </th>
+              <th>Source</th>
               <th>Status</th>
               <th>Title</th>
-              <th>Channel</th>
+              <th>Channel / Show</th>
               <th>Duration</th>
               <th>Provider</th>
               <th>Updated</th>
             </tr>
           </thead>
           <tbody>
-            {videos.map((video) => (
+            {items.map((item) => (
               <tr
-                key={video.video_id}
-                className={active?.video_id === video.video_id ? "active" : ""}
-                onClick={() => setActive(video)}
+                key={item.media_id}
+                className={active?.media_id === item.media_id ? "active" : ""}
+                onClick={() => setActive(item)}
               >
                 <td onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
-                    checked={selectedIds.has(video.video_id)}
-                    onChange={() => toggleOne(video.video_id)}
-                    aria-label={`Select ${video.video_id}`}
+                    checked={selectedIds.has(item.media_id)}
+                    onChange={() => toggleOne(item.media_id)}
+                    aria-label={`Select ${item.media_id}`}
                   />
                 </td>
+                <td>{formatSource(item.source_type)}</td>
                 <td>
-                  <span className={`pill ${video.status}`}>{video.status}</span>
+                  <span className={`pill ${item.status}`}>{item.status}</span>
                 </td>
-                <td className="clip-cell" title={video.title || video.video_id}>
-                  {video.title || video.video_id}
+                <td className="clip-cell" title={item.title || item.media_id}>
+                  {item.title || item.media_id}
                 </td>
-                <td className="clip-cell" title={video.channel}>
-                  {video.channel || "-"}
+                <td className="clip-cell" title={item.channel}>
+                  {item.channel || "-"}
                 </td>
-                <td>{formatDuration(video.duration_seconds)}</td>
-                <td>{video.provider || "-"}</td>
-                <td>{formatDate(video.transcription_updated_at)}</td>
+                <td>{formatDuration(item.duration_seconds)}</td>
+                <td>{item.provider || "-"}</td>
+                <td>{formatDate(item.transcription_updated_at)}</td>
               </tr>
             ))}
-            {!videos.length && !loading && (
+            {!items.length && !loading && (
               <tr>
-                <td colSpan={7} className="muted center-cell">
-                  No videos.
+                <td colSpan={8} className="muted center-cell">
+                  No media items.
                 </td>
               </tr>
             )}
@@ -236,20 +241,20 @@ export function YoutubeTranscriptionCache() {
         </table>
 
         {active && (
-          <YoutubeCacheDetail
-            video={active}
-            selected={selectedIds.has(active.video_id)}
-            onToggle={() => toggleOne(active.video_id)}
-            onRefresh={() => refreshActive(active.video_id)}
+          <MediaTranscriptionDetail
+            item={active}
+            selected={selectedIds.has(active.media_id)}
+            onToggle={() => toggleOne(active.media_id)}
+            onRefresh={() => refreshActive(active.media_id)}
             onClose={() => setActive(null)}
           />
         )}
       </div>
 
-      {selectedVideos.length > 0 && (
+      {selectedItems.length > 0 && (
         <footer className="pager">
           <span className="muted">
-            Selected: {selectedVideos.map((v) => v.video_id).join(", ")}
+            Selected: {selectedItems.map((item) => item.media_id).join(", ")}
           </span>
         </footer>
       )}
@@ -257,14 +262,14 @@ export function YoutubeTranscriptionCache() {
   );
 }
 
-function YoutubeCacheDetail({
-  video,
+function MediaTranscriptionDetail({
+  item,
   selected,
   onToggle,
   onRefresh,
   onClose,
 }: {
-  video: YoutubeTranscriptionCacheVideo;
+  item: MediaTranscriptionCacheItem;
   selected: boolean;
   onToggle: () => void;
   onRefresh: () => void;
@@ -273,7 +278,7 @@ function YoutubeCacheDetail({
   return (
     <aside className="detail">
       <div className="detail-head">
-        <span className={`pill ${video.status}`}>{video.status}</span>
+        <span className={`pill ${item.status}`}>{item.status}</span>
         <span className="spacer" />
         <button className="link" onClick={onRefresh}>
           Refresh
@@ -283,15 +288,15 @@ function YoutubeCacheDetail({
         </button>
       </div>
 
-      <h2>{video.title || video.video_id}</h2>
-      <div className="muted">{video.channel || "No channel"}</div>
+      <h2>{item.title || item.media_id}</h2>
+      <div className="muted">{item.channel || "No channel or show"}</div>
 
       <div className="row wrap detail-actions">
         <button onClick={onToggle}>{selected ? "Deselect" : "Select"}</button>
-        {video.source_url && (
+        {item.source_url && (
           <a
             className="button-link"
-            href={video.source_url}
+            href={item.source_url}
             target="_blank"
             rel="noreferrer"
           >
@@ -300,37 +305,45 @@ function YoutubeCacheDetail({
         )}
       </div>
 
-      {video.error_detail && <div className="error message">{video.error_detail}</div>}
+      {item.error_detail && <div className="error message">{item.error_detail}</div>}
 
       <dl className="meta">
-        <dt>Video id</dt>
-        <dd>{video.video_id}</dd>
+        <dt>Media id</dt>
+        <dd>{item.media_id}</dd>
+        <dt>Source type</dt>
+        <dd>{formatSource(item.source_type)}</dd>
+        <dt>External id</dt>
+        <dd>{item.external_id}</dd>
         <dt>Language</dt>
-        <dd>{video.language}</dd>
+        <dd>{item.language}</dd>
         <dt>Duration</dt>
-        <dd>{formatDuration(video.duration_seconds)}</dd>
+        <dd>{formatDuration(item.duration_seconds)}</dd>
         <dt>Provider</dt>
-        <dd>{video.provider || "-"}</dd>
+        <dd>{item.provider || "-"}</dd>
         <dt>Model</dt>
-        <dd>{video.provider_model || "-"}</dd>
+        <dd>{item.provider_model || "-"}</dd>
         <dt>Audio object</dt>
-        <dd>{video.gcs_object_key || "-"}</dd>
+        <dd>{item.gcs_object_key || "-"}</dd>
         <dt>Payload object</dt>
-        <dd>{video.payload_object_key || "-"}</dd>
+        <dd>{item.payload_object_key || "-"}</dd>
         <dt>Audio updated</dt>
-        <dd>{formatDate(video.audio_updated_at)}</dd>
+        <dd>{formatDate(item.audio_updated_at)}</dd>
         <dt>Transcript updated</dt>
-        <dd>{formatDate(video.transcription_updated_at)}</dd>
+        <dd>{formatDate(item.transcription_updated_at)}</dd>
         <dt>Reviewed</dt>
-        <dd>{formatDate(video.reviewed_at)}</dd>
+        <dd>{formatDate(item.reviewed_at ?? null)}</dd>
       </dl>
 
       <div className="field">
         <label>Transcript preview</label>
-        <pre>{video.transcript_text || "No transcript cached."}</pre>
+        <pre>{item.transcript_text || "No transcript cached."}</pre>
       </div>
     </aside>
   );
+}
+
+function formatSource(value: string): string {
+  return value.replace(/_/g, " ");
 }
 
 function formatDate(value: string | null): string {

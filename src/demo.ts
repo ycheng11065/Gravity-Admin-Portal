@@ -1,4 +1,4 @@
-import type { ProblemReport, YoutubeTranscriptionCacheVideo } from "./types";
+import type { MediaTranscriptionCacheItem, ProblemReport } from "./types";
 
 export const DEMO = import.meta.env.VITE_DEMO === "true";
 
@@ -104,8 +104,11 @@ export const demoReports: ProblemReport[] = [
   },
 ];
 
-export const demoYoutubeCacheVideos: YoutubeTranscriptionCacheVideo[] = [
+export const demoMediaTranscriptionItems: MediaTranscriptionCacheItem[] = [
   {
+    source_type: "youtube",
+    external_id: "y035IcEPiIA",
+    media_id: "youtube:y035IcEPiIA",
     video_id: "y035IcEPiIA",
     source_url: "https://www.youtube.com/watch?v=y035IcEPiIA",
     gcs_object_key: "youtube/y035IcEPiIA/audio.m4a",
@@ -124,27 +127,33 @@ export const demoYoutubeCacheVideos: YoutubeTranscriptionCacheVideo[] = [
     transcription_updated_at: null,
   },
   {
-    video_id: "demoSucceeded1",
-    source_url: "https://www.youtube.com/watch?v=demoSucceeded1",
-    gcs_object_key: "youtube/demoSucceeded1/audio.m4a",
-    title: "Japanese Listening Practice",
-    channel: "Gravity Samples",
+    source_type: "spotify_podcast",
+    external_id: "demoSucceeded1",
+    media_id: "spotify_podcast:demoSucceeded1",
+    video_id: "",
+    source_url: "https://open.spotify.com/episode/demoSucceeded1",
+    gcs_object_key: "podcasts/demoSucceeded1/audio.m4a",
+    title: "Japanese Listening Practice Podcast",
+    channel: "Gravity Samples Show",
     language: "ja",
     duration_seconds: 642,
     audio_updated_at: iso(480),
     status: "succeeded",
     provider: "whisper",
     provider_model: "openai/whisper-large-v3",
-    payload_object_key: "youtube/demoSucceeded1/transcript.json.gz",
+    payload_object_key: "media-transcripts/demoSucceeded1/payload.json.gz",
     transcript_text: "これはデモ用の文字起こしです。管理画面から状態を確認できます。",
     reviewed_at: null,
     error_detail: null,
     transcription_updated_at: iso(300),
   },
   {
-    video_id: "demoFailed1",
-    source_url: "https://www.youtube.com/watch?v=demoFailed1",
-    gcs_object_key: "youtube/demoFailed1/audio.m4a",
+    source_type: "audio_url",
+    external_id: "demoFailed1",
+    media_id: "audio_url:demoFailed1",
+    video_id: "",
+    source_url: "https://example.com/audio/demoFailed1.m4a",
+    gcs_object_key: "audio-url/demoFailed1/audio.m4a",
     title: "Unavailable Audio",
     channel: "Gravity Samples",
     language: "ja",

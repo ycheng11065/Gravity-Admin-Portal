@@ -1,21 +1,22 @@
 import { supabase } from "./supabase";
 import type {
   MediaProvider,
+  MediaTranscriptionCacheItem,
+  MediaTranscriptionCacheItemList,
+  MediaTranscriptionCacheRunResponse,
+  MediaTranscriptionCacheSource,
+  MediaTranscriptionCacheStatus,
   ProblemReport,
   ReportList,
   ReportStatus,
-  YoutubeTranscriptionCacheRunResponse,
-  YoutubeTranscriptionCacheStatus,
-  YoutubeTranscriptionCacheVideo,
-  YoutubeTranscriptionCacheVideoList,
 } from "./types";
-import { DEMO, demoReports, demoYoutubeCacheVideos } from "./demo";
+import { DEMO, demoMediaTranscriptionItems, demoReports } from "./demo";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 let demoState: ProblemReport[] = demoReports.map((r) => ({ ...r }));
-let demoYoutubeState: YoutubeTranscriptionCacheVideo[] =
-  demoYoutubeCacheVideos.map((v) => ({ ...v }));
+let demoMediaTranscriptionState: MediaTranscriptionCacheItem[] =
+  demoMediaTranscriptionItems.map((v) => ({ ...v }));
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -101,73 +102,76 @@ export async function updateReport(
   return handle<ProblemReport>(res);
 }
 
-export interface YoutubeCacheListParams {
-  status?: YoutubeTranscriptionCacheStatus;
+export interface MediaTranscriptionCacheListParams {
+  status?: MediaTranscriptionCacheStatus;
   limit?: number;
 }
 
-export async function listYoutubeTranscriptionCacheVideos(
-  params: YoutubeCacheListParams,
-): Promise<YoutubeTranscriptionCacheVideoList> {
+export async function listMediaTranscriptionCacheItems(
+  params: MediaTranscriptionCacheListParams,
+): Promise<MediaTranscriptionCacheItemList> {
   if (DEMO) {
     const status = params.status ?? "all";
     const limit = params.limit ?? 50;
-    const videos = demoYoutubeState
+    const items = demoMediaTranscriptionState
       .filter((v) => status === "all" || v.status === status)
       .slice(0, limit);
-    return { videos };
+    return { items, videos: items };
   }
 
   const qs = new URLSearchParams();
   qs.set("limit", String(params.limit ?? 50));
   if (params.status) qs.set("status", params.status);
   const res = await fetch(
-    `${BASE}/api/admin/youtube-transcription-cache/videos?${qs}`,
+    `${BASE}/api/admin/media-transcription-cache/items?${qs}`,
     { headers: await authHeaders() },
   );
-  return handle<YoutubeTranscriptionCacheVideoList>(res);
+  return handle<MediaTranscriptionCacheItemList>(res);
 }
 
-export async function getYoutubeTranscriptionCacheVideo(
-  videoId: string,
-): Promise<YoutubeTranscriptionCacheVideo> {
+export async function getMediaTranscriptionCacheItem(
+  mediaId: string,
+): Promise<MediaTranscriptionCacheItem> {
   if (DEMO) {
-    const video = demoYoutubeState.find((v) => v.video_id === videoId);
-    if (!video) throw new Error("Demo video not found.");
-    return { ...video };
+    const item = demoMediaTranscriptionState.find((v) => v.media_id === mediaId);
+    if (!item) throw new Error("Demo media item not found.");
+    return { ...item };
   }
   const res = await fetch(
-    `${BASE}/api/admin/youtube-transcription-cache/videos/${encodeURIComponent(
-      videoId,
+    `${BASE}/api/admin/media-transcription-cache/items/${encodeURIComponent(
+      mediaId,
     )}`,
     { headers: await authHeaders() },
   );
-  return handle<YoutubeTranscriptionCacheVideo>(res);
+  return handle<MediaTranscriptionCacheItem>(res);
 }
 
-export async function runYoutubeTranscriptionCache(
+export async function runMediaTranscriptionCache(
   input: {
-    video_ids: string[];
+    sources: MediaTranscriptionCacheSource[];
     provider: MediaProvider;
     replace: boolean;
   },
-): Promise<YoutubeTranscriptionCacheRunResponse> {
+): Promise<MediaTranscriptionCacheRunResponse> {
   if (DEMO) {
-    const found = new Set(demoYoutubeState.map((v) => v.video_id));
-    const missing = input.video_ids.filter((id) => !found.has(id));
-    const skipped = demoYoutubeState
+    const selected = input.sources.map((source) => `${source.source_type}:${source.external_id}`);
+    const found = new Set(demoMediaTranscriptionState.map((v) => v.media_id));
+    const missing = input.sources.filter((source) => !found.has(`${source.source_type}:${source.external_id}`));
+    const skipped = demoMediaTranscriptionState
       .filter(
         (v) =>
-          input.video_ids.includes(v.video_id) &&
+          selected.includes(v.media_id) &&
           v.status === "succeeded" &&
           !input.replace,
       )
-      .map((v) => v.video_id);
-    const queued = input.video_ids.filter(
-      (id) => found.has(id) && !skipped.includes(id),
+      .map((v) => ({ source_type: v.source_type, external_id: v.external_id }));
+    const skippedIds = new Set(skipped.map((source) => `${source.source_type}:${source.external_id}`));
+    const queued = input.sources.filter(
+      (source) => found.has(`${source.source_type}:${source.external_id}`) && !skippedIds.has(`${source.source_type}:${source.external_id}`),
     );
-    demoYoutubeState = demoYoutubeState.map((v) =>
-      queued.includes(v.video_id)
+    const queuedIds = new Set(queued.map((source) => `${source.source_type}:${source.external_id}`));
+    demoMediaTranscriptionState = demoMediaTranscriptionState.map((v) =>
+      queuedIds.has(v.media_id)
         ? {
             ...v,
             status: "queued",
@@ -180,20 +184,23 @@ export async function runYoutubeTranscriptionCache(
     );
     return {
       accepted: queued.length > 0,
-      requested: input.video_ids.length,
+      requested: input.sources.length,
       queued: queued.length,
       skipped: skipped.length,
       missing: missing.length,
-      video_ids: queued,
-      skipped_video_ids: skipped,
-      missing_video_ids: missing,
+      sources: queued,
+      skipped_sources: skipped,
+      missing_sources: missing,
+      video_ids: queued.filter((source) => source.source_type === "youtube").map((source) => source.external_id),
+      skipped_video_ids: skipped.filter((source) => source.source_type === "youtube").map((source) => source.external_id),
+      missing_video_ids: missing.filter((source) => source.source_type === "youtube").map((source) => source.external_id),
     };
   }
 
-  const res = await fetch(`${BASE}/api/admin/youtube-transcription-cache/runs`, {
+  const res = await fetch(`${BASE}/api/admin/media-transcription-cache/runs`, {
     method: "POST",
     headers: { ...(await authHeaders()), "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return handle<YoutubeTranscriptionCacheRunResponse>(res);
+  return handle<MediaTranscriptionCacheRunResponse>(res);
 }
